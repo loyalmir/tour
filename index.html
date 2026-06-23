@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#15171a">
+<title>프로필 투어 · 6월 4주차</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css">
+<style>
+:root{
+  --slate:#15171a; --panel:#1f2329; --panel2:#262b32; --line:#343b44;
+  --chalk:#f0ebe0; --chalk-dim:#9aa1a8; --mute:#6b727b;
+  --amber:#f5c542; --green:#4cc97a; --red:#e8694a; --hold:#7d8590;
+  --mono:'JetBrains Mono',monospace; --disp:'Oswald',sans-serif;
+  --kr:'Pretendard','Pretendard Variable',system-ui,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{background:var(--slate);color:var(--chalk);font-family:var(--kr);
+  font-size:15px;line-height:1.45;padding-bottom:40px;
+  background-image:radial-gradient(circle at 20% -5%,#23282f 0,transparent 45%);}
+.wrap{max-width:680px;margin:0 auto}
+
+/* ── 클래퍼 헤더 ── */
+.clapper{position:relative;padding:18px 18px 16px;overflow:hidden;
+  border-bottom:2px solid #000}
+.clapper::before{content:"";position:absolute;top:0;left:0;right:0;height:22px;
+  background:repeating-linear-gradient(115deg,var(--chalk) 0 26px,#0c0d0f 26px 52px)}
+.clap-top{height:22px}
+.htitle{display:flex;align-items:baseline;gap:10px;margin-top:14px}
+.htitle h1{font-family:var(--kr);font-weight:800;font-size:24px;letter-spacing:-.02em}
+.htitle .wk{font-family:var(--disp);font-weight:600;color:var(--amber);
+  font-size:15px;letter-spacing:.06em}
+.hsub{color:var(--chalk-dim);font-size:12.5px;margin-top:3px}
+.hsub b{color:var(--chalk);font-weight:600}
+
+/* ── 슬레이트 진행률 ── */
+.slate{margin:14px 18px 0;background:var(--panel);border:1px solid var(--line);
+  border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:16px}
+.dial{position:relative;width:60px;height:60px;flex:0 0 60px}
+.dial svg{transform:rotate(-90deg)}
+.dial .pct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-family:var(--mono);font-weight:700;font-size:14px;color:var(--green)}
+.statline{flex:1;display:flex;gap:6px;flex-wrap:wrap}
+.chip-stat{font-family:var(--mono);font-size:12px;font-weight:700;
+  padding:5px 9px;border-radius:8px;background:var(--panel2);border:1px solid var(--line)}
+.chip-stat .n{font-size:14px}
+.s-plan{color:var(--amber)} .s-done{color:var(--green)}
+.s-hold{color:var(--hold)} .s-skip{color:var(--red)}
+
+/* ── 컨트롤 ── */
+.controls{padding:14px 14px 4px;position:sticky;top:0;z-index:20;
+  background:linear-gradient(var(--slate) 78%,transparent)}
+.search{width:100%;background:var(--panel);border:1px solid var(--line);color:var(--chalk);
+  border-radius:11px;padding:11px 13px;font-size:14.5px;font-family:var(--kr)}
+.search::placeholder{color:var(--mute)}
+.search:focus{outline:2px solid var(--amber);outline-offset:0;border-color:transparent}
+.row{display:flex;gap:7px;flex-wrap:wrap;margin-top:9px}
+.tag{font-family:var(--disp);font-weight:600;letter-spacing:.03em;
+  background:var(--panel);border:1px solid var(--line);color:var(--chalk-dim);
+  padding:7px 12px;border-radius:20px;font-size:12.5px;cursor:pointer;
+  transition:.12s;font-variant-numeric:tabular-nums}
+.tag .kr{font-family:var(--kr);font-weight:600}
+.tag.on{background:var(--chalk);color:#000;border-color:var(--chalk)}
+.tag.on.f-mov{background:var(--amber);border-color:var(--amber)}
+.tag.on.f-dra{background:var(--green);border-color:var(--green)}
+.tag.on.f-agy{background:#6ea8ff;border-color:#6ea8ff}
+.toggle-today{margin-left:auto}
+.tag.today-on{background:var(--amber);color:#000;border-color:var(--amber)}
+
+/* ── 동선 요약 ── */
+.route{margin:10px 14px 0;background:var(--panel);border:1px solid var(--line);
+  border-radius:13px;padding:13px 15px}
+.route h3{font-size:13px;color:var(--amber);font-weight:700;margin-bottom:8px;
+  display:flex;align-items:center;gap:7px}
+.route .reg{margin:7px 0 2px;font-family:var(--mono);font-size:11.5px;color:var(--chalk-dim);
+  text-transform:uppercase;letter-spacing:.05em}
+.route .pl{font-size:13.5px;padding:2px 0;color:var(--chalk)}
+.kakao{margin-top:11px;width:100%;background:var(--amber);color:#000;border:none;
+  padding:11px;border-radius:10px;font-family:var(--kr);font-weight:700;font-size:13.5px;
+  cursor:pointer}
+.kakao:active{transform:scale(.98)}
+
+/* ── 리스트 ── */
+.group-h{font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;
+  color:var(--mute);text-transform:uppercase;margin:18px 16px 8px;
+  display:flex;align-items:center;gap:8px}
+.group-h::after{content:"";flex:1;height:1px;background:var(--line)}
+.list{padding:4px 14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+  padding:13px 14px;margin-bottom:10px;position:relative;transition:.18s}
+.card.done{opacity:.62}
+.card.skip{opacity:.4}
+.card.flag{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber) inset}
+.card.clapfx{animation:clap .4s ease}
+@keyframes clap{0%{transform:scale(1)}25%{transform:scale(.97) rotate(-.4deg)}
+  55%{transform:scale(1.015)}100%{transform:scale(1)}}
+.c-top{display:flex;align-items:flex-start;gap:10px}
+.scene{font-family:var(--mono);font-weight:700;font-size:11px;color:var(--mute);
+  background:var(--panel2);border:1px solid var(--line);border-radius:7px;
+  padding:4px 7px;flex:0 0 auto;margin-top:2px}
+.c-main{flex:1;min-width:0}
+.c-name{font-weight:700;font-size:16.5px;letter-spacing:-.01em;line-height:1.25}
+.c-meta{display:flex;align-items:center;gap:7px;margin-top:4px;flex-wrap:wrap}
+.cat-pill{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:6px;
+  font-family:var(--kr)}
+.cat-영화{background:rgba(245,197,66,.16);color:var(--amber)}
+.cat-드라마{background:rgba(76,201,122,.16);color:var(--green)}
+.cat-제작·에이전시{background:rgba(110,168,255,.16);color:#6ea8ff}
+.region{font-family:var(--mono);font-size:11.5px;color:var(--chalk-dim)}
+.star{flex:0 0 auto;background:none;border:none;font-size:21px;cursor:pointer;
+  color:var(--mute);line-height:1;padding:2px}
+.star.on{color:var(--amber)}
+.addr{margin-top:9px;font-size:13.5px;color:var(--chalk-dim);word-break:keep-all}
+.note{margin-top:5px;font-size:12px;color:var(--red);font-weight:600}
+.acts{display:flex;gap:7px;margin-top:11px}
+.btn{flex:1;background:var(--panel2);border:1px solid var(--line);color:var(--chalk);
+  padding:9px;border-radius:9px;font-size:12.5px;font-weight:600;cursor:pointer;
+  font-family:var(--kr);text-align:center;text-decoration:none;display:block}
+.btn:active{transform:scale(.97)}
+.btn.map{color:#6ea8ff}
+.seg{display:flex;gap:5px;margin-top:10px}
+.seg button{flex:1;background:var(--panel2);border:1px solid var(--line);
+  color:var(--chalk-dim);padding:8px 0;border-radius:8px;font-size:12px;font-weight:700;
+  cursor:pointer;font-family:var(--kr)}
+.seg button.sel[data-s="예정"]{background:var(--amber);color:#000;border-color:var(--amber)}
+.seg button.sel[data-s="완료"]{background:var(--green);color:#000;border-color:var(--green)}
+.seg button.sel[data-s="보류"]{background:var(--hold);color:#000;border-color:var(--hold)}
+.seg button.sel[data-s="제외"]{background:var(--red);color:#000;border-color:var(--red)}
+.memo{width:100%;margin-top:9px;background:var(--panel2);border:1px solid var(--line);
+  color:var(--chalk);border-radius:9px;padding:9px 11px;font-size:13px;font-family:var(--kr);
+  resize:vertical;height:38px;line-height:1.4}
+.memo:focus{outline:1.5px solid var(--amber);border-color:transparent}
+.empty-list{text-align:center;color:var(--mute);padding:50px 20px;font-size:14px}
+
+.foot{text-align:center;color:var(--mute);font-size:11px;margin:26px 14px 0;line-height:1.7}
+.foot button{background:none;border:none;color:var(--mute);text-decoration:underline;
+  font-size:11px;cursor:pointer;font-family:var(--kr)}
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);
+  background:var(--chalk);color:#000;padding:11px 18px;border-radius:11px;font-size:13.5px;
+  font-weight:700;opacity:0;transition:.25s;z-index:99;pointer-events:none}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media (prefers-reduced-motion:reduce){.card.clapfx{animation:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="clapper">
+    <div class="clap-top"></div>
+    <div class="htitle"><h1>프로필 투어</h1><span class="wk">JUN · WEEK 4</span></div>
+    <div class="hsub">출처 키액팅랩 · <b id="cnt-total">0</b>곳 · 마감시기 미정이라 참고용</div>
+  </header>
+
+  <div class="slate">
+    <div class="dial">
+      <svg width="60" height="60" viewBox="0 0 60 60">
+        <circle cx="30" cy="30" r="25" fill="none" stroke="#343b44" stroke-width="6"/>
+        <circle id="ring" cx="30" cy="30" r="25" fill="none" stroke="#4cc97a" stroke-width="6"
+          stroke-linecap="round" stroke-dasharray="157" stroke-dashoffset="157"
+          style="transition:stroke-dashoffset .4s ease"/>
+      </svg>
+      <div class="pct" id="pct">0%</div>
+    </div>
+    <div class="statline">
+      <span class="chip-stat s-plan">예정 <span class="n" id="n-예정">0</span></span>
+      <span class="chip-stat s-done">완료 <span class="n" id="n-완료">0</span></span>
+      <span class="chip-stat s-hold">보류 <span class="n" id="n-보류">0</span></span>
+      <span class="chip-stat s-skip">제외 <span class="n" id="n-제외">0</span></span>
+    </div>
+  </div>
+
+  <div class="controls">
+    <input class="search" id="search" placeholder="작품 · 회사 · 지역 검색">
+    <div class="row" id="cat-row">
+      <button class="tag on" data-cat="전체">전체</button>
+      <button class="tag f-mov" data-cat="영화"><span class="kr">영화</span></button>
+      <button class="tag f-dra" data-cat="드라마"><span class="kr">드라마</span></button>
+      <button class="tag f-agy" data-cat="제작·에이전시"><span class="kr">제작·에이전시</span></button>
+      <button class="tag toggle-today" id="todayBtn"><span class="kr">⭐ 오늘만</span></button>
+    </div>
+  </div>
+
+  <div class="route" id="routeBox" style="display:none">
+    <h3>📍 오늘 동선 <span style="color:var(--chalk-dim);font-weight:600" id="route-cnt"></span></h3>
+    <div id="route-body"></div>
+    <button class="kakao" id="kakaoBtn">카톡용 동선 텍스트 복사</button>
+  </div>
+
+  <div class="list" id="list"></div>
+
+  <div class="foot">
+    지역은 주소 기반 추정값이라 참고만 · 별표 = 오늘 갈 곳<br>
+    <button id="resetBtn">기록 전체 초기화</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const DATA=[
+{c:"영화",n:"감시자",a:"신촌로 141, 2층",r:"마포/서대문"},
+{c:"영화",n:"공조3",a:"논현로 132길 15, 5층",r:"강남 논현"},
+{c:"영화",n:"귀객",a:"서교동 466-3, 지하1층",r:"마포 서교동"},
+{c:"영화",n:"도차비",a:"dochabi2026@gmail.com",r:"이메일 접수",note:"이메일 접수 · 20~30대 여자만",email:1},
+{c:"영화",n:"복직경찰",a:"합정동 441-41",r:"마포 합정동"},
+{c:"영화",n:"살생부",a:"송파구 백제고분로 156, 2층",r:"송파"},
+{c:"영화",n:"상하이의 별",a:"강남대로 101안길 2번지",r:"강남"},
+{c:"영화",n:"숏폼(노바필름)",a:"강남구 도산대로 59길 26, 4층",r:"강남 도산대로"},
+{c:"영화",n:"우리 태양을 흔들자",a:"마포구 월드컵로 106, 3층",r:"마포"},
+{c:"드라마",n:"숏폼",a:"성암로 15길 20",r:"마포 상암"},
+{c:"드라마",n:"스터디그룹2",a:"논현로 175길 60, 2층",r:"강남 논현"},
+{c:"드라마",n:"연애의 재발견",a:"상암동 1650, 로비",r:"마포 상암"},
+{c:"드라마",n:"채수연",a:"잠원동 11-6",r:"서초 잠원"},
+{c:"드라마",n:"프로모터",a:"논현로 86길 29, 4층",r:"강남 논현"},
+{c:"드라마",n:"하얀스캔들",a:"용산구 청파로 345, 별관 2층",r:"용산"},
+{c:"드라마",n:"KBS 일일",a:"여의도동 46, 로비",r:"영등포 여의도"},
+{c:"드라마",n:"tvN 신작",a:"와우산로 121, 5층",r:"마포"},
+{c:"제작·에이전시",n:"A&O 에이전시",a:"봉은사로 57길 53, 2층",r:"강남"},
+{c:"제작·에이전시",n:"IHQ",a:"논현동 267-15, 3층",r:"강남 논현"},
+{c:"제작·에이전시",n:"JK필름",a:"논현로 132길 15, 5층",r:"강남 논현"},
+{c:"제작·에이전시",n:"JS픽처스",a:"마포구 와우산로 121, 5층",r:"마포"},
+{c:"제작·에이전시",n:"M캐스팅",a:"논현로 86길 29, 1층",r:"강남 논현"},
+{c:"제작·에이전시",n:"SLL",a:"마포구 상암산로 38, 로비",r:"마포 상암"},
+{c:"제작·에이전시",n:"YY엔터",a:"언주로 103길 17",r:"강남"},
+{c:"제작·에이전시",n:"블루드래곤",a:"압구정로 20길 15, 4층",r:"강남 압구정"},
+{c:"제작·에이전시",n:"비욘드제이",a:"토정로 112, 로이코빌딩 7층",r:"마포"},
+{c:"제작·에이전시",n:"빅스마일 엔터",a:"선릉로 629, 5층",r:"강남"},
+{c:"제작·에이전시",n:"빅스톤 스튜디오",a:"역삼로 230, 6층",r:"강남 역삼"},
+{c:"제작·에이전시",n:"빅펀치 엔터",a:"도산대로 59길 26, 3층",r:"강남 도산대로"},
+{c:"제작·에이전시",n:"심스토리",a:"마포구 성암로 15길 20",r:"마포 상암"},
+{c:"제작·에이전시",n:"스토리 아일랜드",a:"강서구 마곡중앙2로 15",r:"강서 마곡"},
+{c:"제작·에이전시",n:"왕연기학원",a:"나루터로 12길 19, 2층",r:"강남"},
+{c:"제작·에이전시",n:"액터스99",a:"도산대로 96길 13, 4층",r:"강남 청담"},
+{c:"제작·에이전시",n:"자이언엔터",a:"도산대로 25길 19, 3층",r:"강남 도산대로"},
+{c:"제작·에이전시",n:"지담미디어",a:"의사당대로 1길 25, 9층",r:"영등포 여의도"},
+{c:"제작·에이전시",n:"캐스팅러너",a:"향동동 471, 511호",r:"고양 향동"},
+{c:"제작·에이전시",n:"크림캐스팅",a:"학동로 30길 13, 5층",r:"강남 학동"},
+{c:"제작·에이전시",n:"팀호프",a:"학동로 30길 16, 7층",r:"강남 학동"},
+{c:"제작·에이전시",n:"히든",a:"매봉산로 37, 1204호",r:"용산"},
+];
+DATA.forEach((d,i)=>d.id=i);
+
+const KEY="tour_state_v1";
+let state={};
+try{state=JSON.parse(localStorage.getItem(KEY)||"{}")}catch(e){state={}}
+function get(id){return state[id]||(state[id]={status:"예정",fav:false,memo:""})}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}}
+
+let filter={cat:"전체",q:"",todayOnly:false};
+const $=s=>document.querySelector(s);
+const STATUSES=["예정","완료","보류","제외"];
+
+function toast(t){const el=$("#toast");el.textContent=t;el.classList.add("show");
+  clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove("show"),1600)}
+
+function render(){
+  const q=filter.q.trim().toLowerCase();
+  const items=DATA.filter(d=>{
+    if(filter.cat!=="전체"&&d.c!==filter.cat)return false;
+    if(filter.todayOnly&&!get(d.id).fav)return false;
+    if(q&&!((d.n+d.r+d.a).toLowerCase().includes(q)))return false;
+    return true;
+  });
+  const list=$("#list");list.innerHTML="";
+  if(!items.length){list.innerHTML='<div class="empty-list">조건에 맞는 곳이 없어. 필터를 풀어봐.</div>';}
+  const groupKey=filter.todayOnly?(d=>d.r.split(" ")[0]):(d=>d.c);
+  const groups={};items.forEach(d=>{(groups[groupKey(d)]=groups[groupKey(d)]||[]).push(d)});
+  for(const g in groups){
+    const h=document.createElement("div");h.className="group-h";
+    h.textContent=g+" · "+groups[g].length;list.appendChild(h);
+    groups[g].forEach(d=>list.appendChild(card(d)));
+  }
+  updateStats();updateRoute();
+}
+
+function card(d){
+  const st=get(d.id);
+  const el=document.createElement("div");
+  el.className="card"+(st.status==="완료"?" done":"")+(st.status==="제외"?" skip":"")+(st.fav?" flag":"");
+  const mapUrl="https://map.naver.com/p/search/"+encodeURIComponent(d.a);
+  el.innerHTML=`
+    <div class="c-top">
+      <span class="scene">${String(d.id+1).padStart(2,"0")}</span>
+      <div class="c-main">
+        <div class="c-name">${d.n}</div>
+        <div class="c-meta">
+          <span class="cat-pill cat-${d.c}">${d.c}</span>
+          <span class="region">${d.r}</span>
+        </div>
+      </div>
+      <button class="star${st.fav?" on":""}" title="오늘 갈 곳">${st.fav?"★":"☆"}</button>
+    </div>
+    <div class="addr">${d.a}</div>
+    ${d.note?`<div class="note">⚠ ${d.note}</div>`:""}
+    <div class="seg">${STATUSES.map(s=>`<button data-s="${s}" class="${st.status===s?"sel":""}">${s}</button>`).join("")}</div>
+    <div class="acts">
+      ${d.email?`<button class="btn map mailbtn">메일 복사</button>`
+               :`<a class="btn map" href="${mapUrl}" target="_blank" rel="noopener">네이버지도</a>`}
+      <button class="btn copybtn">주소 복사</button>
+    </div>
+    <textarea class="memo" placeholder="메모 (담당자 · 접수방법 · 반응 등)">${st.memo||""}</textarea>`;
+
+  el.querySelector(".star").onclick=()=>{st.fav=!st.fav;save();render();};
+  el.querySelectorAll(".seg button").forEach(b=>b.onclick=()=>{
+    st.status=b.dataset.s;save();
+    if(st.status==="완료"){el.classList.add("clapfx");toast("탁! 완료 처리");}
+    render();
+  });
+  el.querySelector(".copybtn").onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(d.a);toast("주소 복사됨")};
+  const mb=el.querySelector(".mailbtn");if(mb)mb.onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(d.a);toast("메일 복사됨")};
+  const ta=el.querySelector(".memo");
+  ta.oninput=()=>{st.memo=ta.value;save()};
+  ta.onfocus=()=>{ta.style.height=Math.max(38,ta.scrollHeight)+"px"};
+  return el;
+}
+
+function updateStats(){
+  const cnt={예정:0,완료:0,보류:0,제외:0};
+  DATA.forEach(d=>cnt[get(d.id).status]++);
+  STATUSES.forEach(s=>$("#n-"+s).textContent=cnt[s]);
+  $("#cnt-total").textContent=DATA.length;
+  const active=DATA.length-cnt.제외;
+  const p=active?Math.round(cnt.완료/active*100):0;
+  $("#pct").textContent=p+"%";
+  $("#ring").style.strokeDashoffset=157-(157*p/100);
+}
+
+function updateRoute(){
+  const favs=DATA.filter(d=>get(d.id).fav);
+  const box=$("#routeBox");
+  if(!favs.length){box.style.display="none";return}
+  box.style.display="block";
+  $("#route-cnt").textContent="· "+favs.length+"곳";
+  const reg={};favs.forEach(d=>{const k=d.r.split(" ")[0];(reg[k]=reg[k]||[]).push(d)});
+  $("#route-body").innerHTML=Object.keys(reg).map(k=>
+    `<div class="reg">${k}</div>`+reg[k].map(d=>`<div class="pl">· ${d.n} <span style="color:var(--mute)">${d.a}</span></div>`).join("")
+  ).join("");
+}
+
+function kakaoText(){
+  const favs=DATA.filter(d=>get(d.id).fav);
+  if(!favs.length)return null;
+  const reg={};favs.forEach(d=>{const k=d.r.split(" ")[0];(reg[k]=reg[k]||[]).push(d)});
+  let t="🎬 프로필 투어 동선 ("+favs.length+"곳)\n";
+  for(const k in reg){t+="\n["+k+"]\n";reg[k].forEach(d=>{t+="· "+d.n+" - "+d.a+"\n"})}
+  return t.trim();
+}
+
+$("#search").oninput=e=>{filter.q=e.target.value;render()};
+$("#cat-row").querySelectorAll("[data-cat]").forEach(b=>b.onclick=()=>{
+  filter.cat=b.dataset.cat;
+  $("#cat-row").querySelectorAll("[data-cat]").forEach(x=>x.classList.remove("on"));
+  b.classList.add("on");render();
+});
+$("#todayBtn").onclick=()=>{filter.todayOnly=!filter.todayOnly;
+  $("#todayBtn").classList.toggle("today-on",filter.todayOnly);render()};
+$("#kakaoBtn").onclick=()=>{const t=kakaoText();if(t){navigator.clipboard&&navigator.clipboard.writeText(t);toast("동선 텍스트 복사됨")}};
+$("#resetBtn").onclick=()=>{if(confirm("방문상태·메모·별표를 전부 지울까?")){state={};save();render();toast("초기화 완료")}};
+
+render();
+</script>
+</body>
+</html>
