@@ -96,6 +96,7 @@ body{background:var(--slate);color:var(--chalk);font-family:var(--kr);
 .cat-드라마{background:rgba(76,201,122,.16);color:var(--green)}
 .cat-제작·에이전시{background:rgba(110,168,255,.16);color:var(--blue)}
 .region{font-family:var(--mono);font-size:11.5px;color:var(--chalk-dim)}
+.added{font-family:var(--mono);font-size:11px;color:var(--mute)}
 .topbtns{display:flex;gap:2px;flex:0 0 auto}
 .iconbtn{background:none;border:none;font-size:18px;cursor:pointer;color:var(--mute);line-height:1;padding:3px}
 .iconbtn.star.on{color:var(--amber)}
@@ -309,7 +310,17 @@ function uid(){return "p"+Date.now().toString(36)+Math.random().toString(36).sli
 
 let DB=[];
 try{const r=localStorage.getItem(KEY);if(r)DB=JSON.parse(r)}catch(e){}
-if(!DB.length){DB=SEED.map(s=>({id:uid(),c:s[0],n:s[1],a:s[2],r:s[3],note:s[4],email:s[5],status:"예정",fav:false,memo:""}))}
+if(!DB.length){DB=SEED.map(s=>({id:uid(),c:s[0],n:s[1],a:s[2],r:s[3],note:s[4],email:s[5],status:"예정",fav:false,memo:"",addedAt:null}))}
+DB.forEach(d=>{if(d.addedAt===undefined)d.addedAt=null});
+function todayISO(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
+function fmtAdded(iso){
+  if(!iso)return "초기";
+  const p=iso.split("-");const then=new Date(+p[0],+p[1]-1,+p[2]);
+  const now=new Date();now.setHours(0,0,0,0);
+  const days=Math.round((now-then)/86400000);
+  const rel=days<=0?"오늘":days===1?"어제":days+"일 전";
+  return (+p[1])+"/"+(+p[2])+" · "+rel;
+}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(DB))}catch(e){toast("저장 실패 (저장공간 확인)")}}
 
 let filter={cat:"전체",q:"",todayOnly:false,archive:false};
@@ -360,7 +371,7 @@ function card(d,n){
       <span class="scene">${String(n).padStart(2,"0")}</span>
       <div class="c-main">
         <div class="c-name"></div>
-        <div class="c-meta"><span class="cat-pill cat-${d.c}">${d.c}</span><span class="region"></span></div>
+        <div class="c-meta"><span class="cat-pill cat-${d.c}">${d.c}</span><span class="region"></span><span class="added">추가 ${fmtAdded(d.addedAt)}</span></div>
       </div>
       <div class="topbtns">
         <button class="iconbtn star${d.fav?" on":""}" title="오늘 갈 곳">${d.fav?"★":"☆"}</button>
@@ -452,7 +463,7 @@ $("#edit-save").onclick=()=>{
   const region=$("#f-region").value.trim()||guessRegion(addr);
   const email=/@/.test(addr)?1:0;
   if(id){const d=DB.find(x=>x.id===id);Object.assign(d,{c:$("#f-cat").value,n:name,a:addr,r:region,note:$("#f-note").value.trim(),email});}
-  else{DB.unshift({id:uid(),c:$("#f-cat").value,n:name,a:addr,r:region,note:$("#f-note").value.trim(),email,status:"예정",fav:false,memo:""});}
+  else{DB.unshift({id:uid(),c:$("#f-cat").value,n:name,a:addr,r:region,note:$("#f-note").value.trim(),email,status:"예정",fav:false,memo:"",addedAt:todayISO()});}
   save();closeModal("m-edit");render();toast(id?"수정됨":"추가됨");
 };
 $("#edit-delete").onclick=()=>{
@@ -493,7 +504,7 @@ $("#imp-run").onclick=()=>{
     const ex=DB.find(d=>d.n.replace(/\s/g,"")===key);
     if(ex){kept++;if(it.a)ex.a=it.a;if(it.note)ex.note=it.note;ex.email=it.email;
       if(ex.status==="마감")ex.status="예정";}
-    else{DB.unshift({id:uid(),c:it.c,n:it.n,a:it.a,r:guessRegion(it.a),note:it.note,email:it.email,status:"예정",fav:false,memo:""});added++}
+    else{DB.unshift({id:uid(),c:it.c,n:it.n,a:it.a,r:guessRegion(it.a),note:it.note,email:it.email,status:"예정",fav:false,memo:"",addedAt:todayISO()});added++}
   });
   save();closeModal("m-import");filter.archive=false;syncArchBtn();render();
   toast("추가 "+added+" · 기존유지 "+kept);
@@ -511,7 +522,7 @@ $("#bk-import").onclick=()=>{
   }catch(e){toast("형식이 안 맞아. 내보낸 텍스트 전체를 넣어줘")}
 };
 $("#bk-reset").onclick=()=>{if(confirm("전부 지우고 처음(키액팅랩 39곳) 상태로 되돌릴까?")){
-  DB=SEED.map(s=>({id:uid(),c:s[0],n:s[1],a:s[2],r:s[3],note:s[4],email:s[5],status:"예정",fav:false,memo:""}));
+  DB=SEED.map(s=>({id:uid(),c:s[0],n:s[1],a:s[2],r:s[3],note:s[4],email:s[5],status:"예정",fav:false,memo:"",addedAt:null}));
   save();closeModal("m-backup");render();toast("초기화 완료")}};
 
 /* ── 필터/토글 ── */
