@@ -61,8 +61,8 @@ body{background:var(--slate);color:var(--chalk);font-family:var(--kr);
 .tag.on.f-dra{background:var(--green);border-color:var(--green)}
 .tag.on.f-agy{background:var(--blue);border-color:var(--blue)}
 .tag.today-on{background:var(--amber);color:#000;border-color:var(--amber)}
-.actbar{display:flex;gap:7px;margin-top:9px}
-.actbar button{flex:1;background:var(--panel);border:1px solid var(--line);color:var(--chalk);
+.actbar{display:flex;gap:7px;margin-top:9px;flex-wrap:wrap}
+.actbar button{flex:1 1 30%;min-width:0;background:var(--panel);border:1px solid var(--line);color:var(--chalk);
   padding:9px 4px;border-radius:10px;font-size:12.5px;font-weight:700;font-family:var(--kr);cursor:pointer}
 .actbar button:active{transform:scale(.97)}
 .actbar button.arch-on{background:var(--panel2);color:var(--amber);border-color:var(--amber)}
@@ -147,6 +147,20 @@ body{background:var(--slate);color:var(--chalk);font-family:var(--kr);
 .codebox{background:var(--slate);border:1px solid var(--line);border-radius:10px;padding:11px;
   font-family:var(--mono);font-size:11px;color:var(--chalk-dim);white-space:pre-wrap;line-height:1.6;margin:4px 0 12px}
 
+.maprow{display:flex;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--line);
+  border-radius:10px;padding:9px 11px;margin-bottom:7px}
+.maprow .col-n{font-family:var(--mono);font-size:11px;color:var(--mute);flex:0 0 34px}
+.maprow .col-sample{flex:1;font-size:12.5px;color:var(--chalk-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.maprow select{flex:0 0 auto;background:var(--panel);border:1px solid var(--line);color:var(--chalk);
+  border-radius:8px;padding:7px 8px;font-size:12.5px;font-family:var(--kr)}
+.xlsx-opts{display:flex;align-items:center;gap:8px;margin:10px 0;font-size:13px;color:var(--chalk-dim)}
+.xlsx-opts select{background:var(--panel2);border:1px solid var(--line);color:var(--chalk);
+  border-radius:8px;padding:7px 8px;font-size:13px;font-family:var(--kr)}
+.xlsx-preview{font-size:11.5px;color:var(--mute);margin:10px 0 4px;font-family:var(--mono)}
+.xlsx-drop{border:1.5px dashed var(--line);border-radius:12px;padding:26px 14px;text-align:center;
+  color:var(--chalk-dim);font-size:13.5px;cursor:pointer}
+.xlsx-drop b{color:var(--chalk)}
+
 .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);
   background:var(--chalk);color:#000;padding:11px 18px;border-radius:11px;font-size:13.5px;
   font-weight:700;opacity:0;transition:.25s;z-index:99;pointer-events:none;max-width:90%;text-align:center}
@@ -192,9 +206,11 @@ body{background:var(--slate);color:var(--chalk);font-family:var(--kr);
     <div class="actbar">
       <button id="addBtn">＋ 추가</button>
       <button id="importBtn">📋 붙여넣기</button>
+      <button id="xlsxBtn">📊 엑셀</button>
       <button id="archBtn">🗄 보관함</button>
       <button id="backupBtn">⋯ 백업</button>
     </div>
+    <input type="file" id="xlsxFile" accept=".xlsx,.xls,.csv" style="display:none">
   </div>
 
   <div class="route" id="routeBox" style="display:none">
@@ -243,6 +259,18 @@ body{background:var(--slate);color:var(--chalk);font-family:var(--kr);
   </div>
 </div></div>
 
+<!-- 엑셀 가져오기 -->
+<div class="modal" id="m-xlsx"><div class="sheet">
+  <h2>엑셀에서 가져오기</h2>
+  <p class="desc" id="xlsx-desc">엑셀(.xlsx/.xls) 또는 CSV 파일을 올리면 열 구성을 보고 자동으로 매칭해봐.
+    맞는지 확인하고 <b style="color:var(--chalk)">가져오기</b>를 누르면 돼. 기존 곳은 상태·메모가 유지돼.</p>
+  <div id="xlsx-body"></div>
+  <div class="sheet-acts">
+    <button class="btn-ghost" data-close>취소</button>
+    <button class="btn-primary" id="xlsx-run" style="display:none">가져오기</button>
+  </div>
+</div></div>
+
 <!-- 백업 -->
 <div class="modal" id="m-backup"><div class="sheet">
   <h2>백업 · 복원</h2>
@@ -260,6 +288,7 @@ body{background:var(--slate);color:var(--chalk);font-family:var(--kr);
 
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 const SEED=[
 ["영화","감시자","신촌로 141, 2층","마포/서대문","",0],
@@ -494,20 +523,134 @@ function parseList(text){
   });
   return out;
 }
-$("#importBtn").onclick=()=>{$("#imp-text").value="";openModal("m-import")};
-$("#imp-run").onclick=()=>{
-  const items=parseList($("#imp-text").value);
-  if(!items.length){toast("읽을 항목이 없어. 형식을 확인해줘");return}
+function mergeItems(items){
+  if(!items.length)return null;
   let added=0,kept=0;
   items.forEach(it=>{
     const key=it.n.replace(/\s/g,"");
     const ex=DB.find(d=>d.n.replace(/\s/g,"")===key);
-    if(ex){kept++;if(it.a)ex.a=it.a;if(it.note)ex.note=it.note;ex.email=it.email;
-      if(ex.status==="마감")ex.status="예정";}
-    else{DB.unshift({id:uid(),c:it.c,n:it.n,a:it.a,r:guessRegion(it.a),note:it.note,email:it.email,status:"예정",fav:false,memo:"",addedAt:todayISO()});added++}
+    if(ex){
+      kept++;
+      if(it.a)ex.a=it.a;
+      if(it.note)ex.note=it.note;
+      if(it.email!==undefined)ex.email=it.email;
+      if(it.r)ex.r=it.r;
+      if(ex.status==="마감")ex.status="예정";
+    }else{
+      DB.unshift({id:uid(),c:it.c,n:it.n,a:it.a||"",r:it.r||guessRegion(it.a||""),
+        note:it.note||"",email:it.email||0,
+        status:(it.status&&STATUSES.includes(it.status))?it.status:"예정",
+        fav:false,memo:"",addedAt:todayISO()});
+      added++;
+    }
   });
-  save();closeModal("m-import");filter.archive=false;syncArchBtn();render();
-  toast("추가 "+added+" · 기존유지 "+kept);
+  save();
+  return {added,kept};
+}
+$("#importBtn").onclick=()=>{$("#imp-text").value="";openModal("m-import")};
+$("#imp-run").onclick=()=>{
+  const items=parseList($("#imp-text").value);
+  const r=mergeItems(items);
+  if(!r){toast("읽을 항목이 없어. 형식을 확인해줘");return}
+  closeModal("m-import");filter.archive=false;syncArchBtn();render();
+  toast("추가 "+r.added+" · 기존유지 "+r.kept);
+};
+
+/* ── 엑셀 가져오기 ── */
+let xlsxState={book:null,sheetName:null,rows:null,headerRow:0};
+function xlsxNorm(h){return String(h==null?"":h).replace(/[\s\/()·.\-|]/g,"")}
+function guessRole(h){
+  const n=xlsxNorm(h);
+  if(!n)return"ignore";
+  if(/카테고리|구분|분류/.test(n))return"cat";
+  if(/작품.*회사|회사.*명|업체명|장소명|명칭|이름|작품/.test(n))return"name";
+  if(/주소/.test(n))return"addr";
+  if(/지역/.test(n))return"region";
+  if(/비고|메모|note/i.test(n))return"note";
+  if(/방문상태|상태/.test(n))return"status";
+  return"ignore";
+}
+const ROLE_LABELS={ignore:"무시",cat:"카테고리",name:"이름/작품명",addr:"주소",region:"지역",note:"비고",status:"방문상태"};
+function xlsxDropHTML(){
+  return `<label class="xlsx-drop" for="xlsxFile"><b>파일 선택</b> 또는 여기로 드래그<br>.xlsx · .xls · .csv</label>`;
+}
+function resetXlsxModal(){
+  xlsxState={book:null,sheetName:null,rows:null,headerRow:0};
+  $("#xlsx-body").innerHTML=xlsxDropHTML();
+  $("#xlsx-run").style.display="none";
+  $("#xlsxFile").value="";
+}
+function sheetToRows(wb,name){
+  return XLSX.utils.sheet_to_json(wb.Sheets[name],{header:1,defval:"",raw:false});
+}
+function renderXlsxPreview(){
+  const rows=xlsxState.rows;
+  if(!rows||!rows.length){$("#xlsx-body").innerHTML=xlsxDropHTML();$("#xlsx-run").style.display="none";return}
+  const hIdx=xlsxState.headerRow;
+  const header=rows[hIdx]||[];
+  const sample=rows[hIdx+1]||[];
+  const colCount=Math.max(header.length,sample.length,1);
+  let html='<div class="xlsx-opts">시트 <select id="xlsx-sheet"></select></div>';
+  html+='<div class="xlsx-opts">헤더 행 <select id="xlsx-hrow">'+
+    rows.slice(0,Math.min(rows.length,6)).map((r,i)=>`<option value="${i}" ${i===hIdx?"selected":""}>${i+1}행</option>`).join("")+'</select></div>';
+  html+=`<div class="xlsx-preview">데이터 ${Math.max(rows.length-hIdx-1,0)}행 감지됨 · 열마다 뭘 뜻하는지 확인해줘</div>`;
+  for(let c=0;c<colCount;c++){
+    const h=header[c],s=sample[c];
+    const label=(h?String(h):"")+(s?" · "+s:"");
+    html+=`<div class="maprow"><span class="col-n">${c+1}열</span>
+      <span class="col-sample">${label||"(비어있음)"}</span>
+      <select data-col="${c}">${Object.keys(ROLE_LABELS).map(r=>`<option value="${r}" ${r===guessRole(h)?"selected":""}>${ROLE_LABELS[r]}</option>`).join("")}</select>
+    </div>`;
+  }
+  $("#xlsx-body").innerHTML=html;
+  const sheetSel=$("#xlsx-sheet");
+  sheetSel.innerHTML=xlsxState.book.SheetNames.map(n=>`<option ${n===xlsxState.sheetName?"selected":""}>${n}</option>`).join("");
+  sheetSel.onchange=()=>{
+    xlsxState.sheetName=sheetSel.value;
+    xlsxState.rows=sheetToRows(xlsxState.book,xlsxState.sheetName);
+    xlsxState.headerRow=0;
+    renderXlsxPreview();
+  };
+  $("#xlsx-hrow").onchange=e=>{xlsxState.headerRow=+e.target.value;renderXlsxPreview();};
+  $("#xlsx-run").style.display="block";
+}
+$("#xlsxBtn").onclick=()=>{resetXlsxModal();openModal("m-xlsx")};
+$("#xlsxFile").onchange=async e=>{
+  const file=e.target.files[0];if(!file)return;
+  try{
+    const buf=await file.arrayBuffer();
+    const wb=XLSX.read(buf,{type:"array"});
+    const name=wb.SheetNames.find(n=>!/현황|통계|대시보드|summary/i.test(n))||wb.SheetNames[0];
+    xlsxState.book=wb;xlsxState.sheetName=name;
+    xlsxState.rows=sheetToRows(wb,name);xlsxState.headerRow=0;
+    renderXlsxPreview();
+  }catch(err){toast("파일을 읽지 못했어. 형식을 확인해줘");resetXlsxModal();}
+};
+$("#xlsx-run").onclick=()=>{
+  const rows=xlsxState.rows;if(!rows)return;
+  const hIdx=xlsxState.headerRow;
+  const roleOf={};
+  document.querySelectorAll('#xlsx-body select[data-col]').forEach(sel=>{
+    if(sel.value!=="ignore"&&roleOf[sel.value]===undefined)roleOf[sel.value]=+sel.dataset.col;
+  });
+  if(roleOf.name===undefined){toast("'이름/작품명' 열을 지정해줘");return}
+  const items=[];
+  for(let r=hIdx+1;r<rows.length;r++){
+    const row=rows[r];if(!row)continue;
+    const name=String(row[roleOf.name]||"").trim();
+    if(!name)continue;
+    const addr=roleOf.addr!==undefined?String(row[roleOf.addr]||"").trim():"";
+    let cat=roleOf.cat!==undefined?String(row[roleOf.cat]||"").trim():"";
+    cat=cat.includes("영화")?"영화":cat.includes("드라마")?"드라마":"제작·에이전시";
+    const region=roleOf.region!==undefined?String(row[roleOf.region]||"").trim():"";
+    const note=roleOf.note!==undefined?String(row[roleOf.note]||"").trim():"";
+    const status=roleOf.status!==undefined?String(row[roleOf.status]||"").trim():"";
+    items.push({c:cat,n:name,a:addr,r:region,note,email:/@/.test(addr)?1:0,status});
+  }
+  const res=mergeItems(items);
+  if(!res){toast("가져올 행이 없어. 이름 열을 확인해줘");return}
+  closeModal("m-xlsx");filter.archive=false;syncArchBtn();render();
+  toast("엑셀: 추가 "+res.added+" · 기존유지 "+res.kept);
 };
 
 /* ── 백업 ── */
