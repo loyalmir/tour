@@ -96,7 +96,14 @@ body{background:var(--slate);color:var(--chalk);font-family:var(--kr);
 .cat-드라마{background:rgba(76,201,122,.16);color:var(--green)}
 .cat-제작·에이전시{background:rgba(110,168,255,.16);color:var(--blue)}
 .region{font-family:var(--mono);font-size:11.5px;color:var(--chalk-dim)}
-.added{font-family:var(--mono);font-size:11px;color:var(--mute)}
+.added{font-family:var(--mono);font-size:11px;color:var(--mute);font-weight:600}
+.added.added-new{color:var(--amber);font-weight:700}
+.recentbar{margin:10px 14px 0;background:rgba(245,197,66,.12);border:1px solid var(--amber);
+  border-radius:13px;padding:11px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  font-size:12.5px;color:var(--chalk)}
+.recentbar b{color:var(--amber)}
+.recentbar button{margin-left:auto;background:var(--amber);color:#000;border:none;
+  padding:7px 12px;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--kr)}
 .topbtns{display:flex;gap:2px;flex:0 0 auto}
 .iconbtn{background:none;border:none;font-size:18px;cursor:pointer;color:var(--mute);line-height:1;padding:3px}
 .iconbtn.star.on{color:var(--amber)}
@@ -124,12 +131,13 @@ body{background:var(--slate);color:var(--chalk);font-family:var(--kr);
 .foot{text-align:center;color:var(--mute);font-size:11px;margin:26px 14px 0;line-height:1.7}
 
 /* 모달 */
+body.modal-open{overflow:hidden;height:100vh}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:50;display:none;
-  align-items:flex-end;justify-content:center}
+  align-items:flex-end;justify-content:center;overscroll-behavior:contain}
 .modal.open{display:flex}
 .sheet{background:var(--panel);width:100%;max-width:680px;border-radius:18px 18px 0 0;
   border-top:2px solid var(--line);padding:18px 18px calc(18px + env(safe-area-inset-bottom));
-  max-height:88vh;overflow:auto}
+  max-height:88vh;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y}
 .sheet h2{font-size:18px;font-weight:800;margin-bottom:4px}
 .sheet p.desc{color:var(--chalk-dim);font-size:12.5px;margin-bottom:14px;line-height:1.5}
 .field{margin-bottom:11px}
@@ -218,6 +226,8 @@ body{background:var(--slate);color:var(--chalk);font-family:var(--kr);
     <div id="route-body"></div>
     <button class="kakao" id="kakaoBtn">카톡용 동선 텍스트 복사</button>
   </div>
+
+  <div class="recentbar" id="recentBar" style="display:none"></div>
 
   <div class="list" id="list"></div>
   <div class="foot">지역은 주소 기반 추정값이라 참고만 · 별표 = 오늘 갈 곳 · 데이터는 이 기기에 저장돼</div>
@@ -350,9 +360,16 @@ function fmtAdded(iso){
   const rel=days<=0?"오늘":days===1?"어제":days+"일 전";
   return (+p[1])+"/"+(+p[2])+" · "+rel;
 }
+function isRecentDate(iso){
+  if(!iso)return false;
+  const p=iso.split("-");const then=new Date(+p[0],+p[1]-1,+p[2]);
+  const now=new Date();now.setHours(0,0,0,0);
+  return Math.round((now-then)/86400000)<=1;
+}
 function save(){try{localStorage.setItem(KEY,JSON.stringify(DB))}catch(e){toast("저장 실패 (저장공간 확인)")}}
 
 let filter={cat:"전체",q:"",todayOnly:false,archive:false};
+let recentFilter=null;
 
 function toast(t){const el=$("#toast");el.textContent=t;el.classList.add("show");
   clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove("show"),1900)}
@@ -367,15 +384,20 @@ function guessRegion(a){
 }
 
 function render(){
-  const q=filter.q.trim().toLowerCase();
-  const items=DB.filter(d=>{
-    const isArch=ARCHIVED.includes(d.status);
-    if(filter.archive!==isArch)return false;
-    if(filter.cat!=="전체"&&d.c!==filter.cat)return false;
-    if(filter.todayOnly&&!d.fav)return false;
-    if(q&&!((d.n+d.r+d.a).toLowerCase().includes(q)))return false;
-    return true;
-  });
+  let items;
+  if(recentFilter){
+    items=DB.filter(d=>recentFilter.includes(d.id));
+  }else{
+    const q=filter.q.trim().toLowerCase();
+    items=DB.filter(d=>{
+      const isArch=ARCHIVED.includes(d.status);
+      if(filter.archive!==isArch)return false;
+      if(filter.cat!=="전체"&&d.c!==filter.cat)return false;
+      if(filter.todayOnly&&!d.fav)return false;
+      if(q&&!((d.n+d.r+d.a).toLowerCase().includes(q)))return false;
+      return true;
+    });
+  }
   const list=$("#list");list.innerHTML="";
   if(!items.length){
     list.innerHTML='<div class="empty-list">'+(filter.archive?"보관함이 비어 있어.":"조건에 맞는 곳이 없어. 필터를 풀거나 ＋추가/붙여넣기로 채워봐.")+'</div>';
@@ -400,7 +422,7 @@ function card(d,n){
       <span class="scene">${String(n).padStart(2,"0")}</span>
       <div class="c-main">
         <div class="c-name"></div>
-        <div class="c-meta"><span class="cat-pill cat-${d.c}">${d.c}</span><span class="region"></span><span class="added">추가 ${fmtAdded(d.addedAt)}</span></div>
+        <div class="c-meta"><span class="cat-pill cat-${d.c}">${d.c}</span><span class="region"></span><span class="added${isRecentDate(d.addedAt)?" added-new":""}">추가 ${fmtAdded(d.addedAt)}</span></div>
       </div>
       <div class="topbtns">
         <button class="iconbtn star${d.fav?" on":""}" title="오늘 갈 곳">${d.fav?"★":"☆"}</button>
@@ -467,10 +489,10 @@ function kakaoText(){
 }
 
 /* ── 모달 공통 ── */
-function openModal(id){$("#"+id).classList.add("open")}
-function closeModal(id){$("#"+id).classList.remove("open")}
-document.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>b.closest(".modal").classList.remove("open"));
-document.querySelectorAll(".modal").forEach(m=>m.onclick=e=>{if(e.target===m)m.classList.remove("open")});
+function openModal(id){$("#"+id).classList.add("open");document.body.classList.add("modal-open")}
+function closeModal(id){$("#"+id).classList.remove("open");document.body.classList.remove("modal-open")}
+document.querySelectorAll("[data-close]").forEach(b=>b.onclick=()=>closeModal(b.closest(".modal").id));
+document.querySelectorAll(".modal").forEach(m=>m.onclick=e=>{if(e.target===m)closeModal(m.id)});
 
 /* ── 추가/수정 ── */
 function openEdit(d){
@@ -525,35 +547,48 @@ function parseList(text){
 }
 function mergeItems(items){
   if(!items.length)return null;
-  let added=0,kept=0;
+  let added=0,kept=0;const addedIds=[],keptIds=[];
   items.forEach(it=>{
     const key=it.n.replace(/\s/g,"");
     const ex=DB.find(d=>d.n.replace(/\s/g,"")===key);
     if(ex){
-      kept++;
+      kept++;keptIds.push(ex.id);
       if(it.a)ex.a=it.a;
       if(it.note)ex.note=it.note;
       if(it.email!==undefined)ex.email=it.email;
       if(it.r)ex.r=it.r;
       if(ex.status==="마감")ex.status="예정";
     }else{
-      DB.unshift({id:uid(),c:it.c,n:it.n,a:it.a||"",r:it.r||guessRegion(it.a||""),
+      const id=uid();
+      DB.unshift({id,c:it.c,n:it.n,a:it.a||"",r:it.r||guessRegion(it.a||""),
         note:it.note||"",email:it.email||0,
         status:(it.status&&STATUSES.includes(it.status))?it.status:"예정",
         fav:false,memo:"",addedAt:todayISO()});
-      added++;
+      added++;addedIds.push(id);
     }
   });
   save();
-  return {added,kept};
+  return {added,kept,addedIds,keptIds};
+}
+function showRecentImport(res){
+  recentFilter=[...res.addedIds,...res.keptIds];
+  filter.archive=false;syncArchBtn();
+  const bar=$("#recentBar");
+  bar.style.display="flex";
+  bar.innerHTML=`🆕 방금 가져온 <b>${recentFilter.length}곳</b> · 신규 ${res.added} · 갱신 ${res.kept}<button id="recentClear">전체 목록 보기</button>`;
+  $("#recentClear").onclick=clearRecentFilter;
+  render();
+}
+function clearRecentFilter(){
+  recentFilter=null;$("#recentBar").style.display="none";render();
 }
 $("#importBtn").onclick=()=>{$("#imp-text").value="";openModal("m-import")};
 $("#imp-run").onclick=()=>{
   const items=parseList($("#imp-text").value);
   const r=mergeItems(items);
   if(!r){toast("읽을 항목이 없어. 형식을 확인해줘");return}
-  closeModal("m-import");filter.archive=false;syncArchBtn();render();
-  toast("추가 "+r.added+" · 기존유지 "+r.kept);
+  closeModal("m-import");
+  showRecentImport(r);
 };
 
 /* ── 엑셀 가져오기 ── */
@@ -649,8 +684,8 @@ $("#xlsx-run").onclick=()=>{
   }
   const res=mergeItems(items);
   if(!res){toast("가져올 행이 없어. 이름 열을 확인해줘");return}
-  closeModal("m-xlsx");filter.archive=false;syncArchBtn();render();
-  toast("엑셀: 추가 "+res.added+" · 기존유지 "+res.kept);
+  closeModal("m-xlsx");
+  showRecentImport(res);
 };
 
 /* ── 백업 ── */
@@ -669,18 +704,20 @@ $("#bk-reset").onclick=()=>{if(confirm("전부 지우고 처음(키액팅랩 39�
   save();closeModal("m-backup");render();toast("초기화 완료")}};
 
 /* ── 필터/토글 ── */
-$("#search").oninput=e=>{filter.q=e.target.value;render()};
+function dismissRecent(){if(recentFilter){recentFilter=null;$("#recentBar").style.display="none"}}
+$("#search").oninput=e=>{dismissRecent();filter.q=e.target.value;render()};
 $("#cat-row").querySelectorAll("[data-cat]").forEach(b=>b.onclick=()=>{
+  dismissRecent();
   filter.cat=b.dataset.cat;
   $("#cat-row").querySelectorAll("[data-cat]").forEach(x=>x.classList.remove("on"));
   b.classList.add("on");render();
 });
-$("#todayBtn").onclick=()=>{filter.todayOnly=!filter.todayOnly;
+$("#todayBtn").onclick=()=>{dismissRecent();filter.todayOnly=!filter.todayOnly;
   $("#todayBtn").classList.toggle("today-on",filter.todayOnly);render()};
 function syncArchBtn(){$("#archBtn").classList.toggle("arch-on",filter.archive);
   $("#archBtn").textContent=filter.archive?"🗄 활동 목록":"🗄 보관함";
   $("#wk").textContent=filter.archive?"ARCHIVE":"SLATE"}
-$("#archBtn").onclick=()=>{filter.archive=!filter.archive;
+$("#archBtn").onclick=()=>{dismissRecent();filter.archive=!filter.archive;
   if(filter.archive)filter.todayOnly=false,$("#todayBtn").classList.remove("today-on");
   syncArchBtn();render()};
 $("#kakaoBtn").onclick=()=>{const t=kakaoText();if(t){navigator.clipboard&&navigator.clipboard.writeText(t);toast("동선 텍스트 복사됨")}};
