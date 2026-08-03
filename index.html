@@ -74,6 +74,25 @@ body{background:var(--slate);color:var(--chalk);font-family:var(--kr);
 .kakao{margin-top:11px;width:100%;background:var(--amber);color:#000;border:none;padding:11px;
   border-radius:10px;font-family:var(--kr);font-weight:700;font-size:13.5px;cursor:pointer}
 .kakao:active{transform:scale(.98)}
+.btn.routebtn{color:var(--blue)}
+.btn.routebtn.on{background:var(--blue);color:#000;border-color:var(--blue)}
+.card.inroute{box-shadow:-3px 0 0 0 var(--blue) inset}
+.route-start{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--chalk-dim);
+  margin-bottom:10px;font-weight:600}
+.route-start select{flex:1;background:var(--panel2);border:1px solid var(--line);color:var(--chalk);
+  border-radius:9px;padding:8px 10px;font-size:13px;font-family:var(--kr)}
+.rt-stop{display:flex;align-items:center;gap:10px;padding:7px 0}
+.rt-no{flex:0 0 24px;height:24px;border-radius:7px;background:var(--blue);color:#000;
+  font-family:var(--mono);font-weight:700;font-size:12px;display:flex;align-items:center;justify-content:center}
+.rt-info{flex:1;min-width:0}
+.rt-name{font-size:14px;font-weight:700}
+.rt-warn{font-size:10px;color:var(--red);font-weight:700}
+.rt-addr{font-size:11.5px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rt-drop{flex:0 0 auto;background:none;border:none;color:var(--mute);font-size:14px;cursor:pointer;padding:4px 6px}
+.rt-seg{margin:1px 0 1px 34px;font-size:12px}
+.rt-seg a{color:var(--blue);text-decoration:none}
+.rt-seg a:active{opacity:.7}
+.rt-seg-x{color:var(--mute)}
 
 .group-h{font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;color:var(--mute);
   margin:18px 16px 8px;display:flex;align-items:center;gap:8px}
@@ -222,7 +241,7 @@ body.modal-open{overflow:hidden;height:100vh}
   </div>
 
   <div class="route" id="routeBox" style="display:none">
-    <h3>📍 오늘 동선 <span style="color:var(--chalk-dim);font-weight:600" id="route-cnt"></span></h3>
+    <h3>🗺 이동 동선 <span style="color:var(--chalk-dim);font-weight:600" id="route-cnt"></span></h3>
     <div id="route-body"></div>
     <button class="kakao" id="kakaoBtn">카톡용 동선 텍스트 복사</button>
   </div>
@@ -349,8 +368,8 @@ function uid(){return "p"+Date.now().toString(36)+Math.random().toString(36).sli
 
 let DB=[];
 try{const r=localStorage.getItem(KEY);if(r)DB=JSON.parse(r)}catch(e){}
-if(!DB.length){DB=SEED.map(s=>({id:uid(),c:s[0],n:s[1],a:s[2],r:s[3],note:s[4],email:s[5],status:"예정",fav:false,memo:"",addedAt:null}))}
-DB.forEach(d=>{if(d.addedAt===undefined)d.addedAt=null});
+if(!DB.length){DB=SEED.map(s=>({id:uid(),c:s[0],n:s[1],a:s[2],r:s[3],note:s[4],email:s[5],status:"예정",fav:false,route:false,memo:"",addedAt:null}))}
+DB.forEach(d=>{if(d.addedAt===undefined)d.addedAt=null;if(d.route===undefined)d.route=false});
 function todayISO(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}
 function fmtAdded(iso){
   if(!iso)return "초기";
@@ -370,6 +389,7 @@ function save(){try{localStorage.setItem(KEY,JSON.stringify(DB))}catch(e){toast(
 
 let filter={cat:"전체",q:"",todayOnly:false,archive:false};
 let recentFilter=null;
+let routeStart=null; // 출발지로 지정한 곳의 id
 
 function toast(t){const el=$("#toast");el.textContent=t;el.classList.add("show");
   clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove("show"),1900)}
@@ -381,6 +401,61 @@ function guessRegion(a){
   const map=[["도산대로","강남"],["논현","강남"],["언주로","강남"],["봉은사로","강남"],["선릉로","강남"],["역삼","강남"],["압구정","강남"],["학동로","강남"],["강남대로","강남"],["나루터로","강남"],["테헤란로","강남"],["상암","마포"],["성암로","마포"],["월드컵로","마포"],["와우산로","마포"],["서교","마포"],["합정","마포"],["토정로","마포"],["신촌로","마포/서대문"],["청파로","용산"],["매봉산로","용산"],["잠원","서초"],["여의도","영등포"],["의사당대로","영등포"],["마곡","강서"],["백제고분로","송파"],["향동","고양"]];
   for(const[k,v]of map){if(a.includes(k))return v}
   return"";
+}
+
+/* ── 지역 좌표(대략 중심) · 동선 정렬/길찾기용 ── */
+/* [위도, 경도]. 개별 건물이 아니라 지역 중심 근사치. */
+const GEO={
+  "강남 도산대로":[37.5233,127.0360],"강남 청담":[37.5250,127.0470],"강남 압구정":[37.5270,127.0290],
+  "강남 논현":[37.5110,127.0210],"강남 역삼":[37.5000,127.0360],"강남 학동":[37.5140,127.0320],
+  "강남":[37.5172,127.0400],"서초 잠원":[37.5120,127.0110],"서초":[37.4840,127.0320],
+  "마포 상암":[37.5790,126.8890],"마포 서교동":[37.5510,126.9200],"마포 합정동":[37.5490,126.9130],
+  "마포":[37.5520,126.9250],"마포/서대문":[37.5590,126.9420],"용산":[37.5320,126.9900],
+  "영등포 여의도":[37.5210,126.9240],"강서 마곡":[37.5600,126.8260],"송파":[37.5050,127.1140],
+  "고양 향동":[37.6070,126.8770]
+};
+const GU_GEO={"강남":[37.5172,127.0400],"서초":[37.4840,127.0320],"마포":[37.5520,126.9250],
+  "용산":[37.5320,126.9900],"영등포":[37.5210,126.9240],"강서":[37.5600,126.8260],
+  "송파":[37.5050,127.1140],"고양":[37.6070,126.8770],"마포/서대문":[37.5590,126.9420]};
+function geo(d){
+  const r=d.r||"";
+  if(GEO[r])return GEO[r];
+  const gu=(r.split(" ")[0])||"";
+  if(GU_GEO[gu])return GU_GEO[gu];
+  // d.r로 못 찾으면 주소에서 지역 추정 후 재시도
+  const g2=guessRegion(d.a||"");
+  if(GEO[g2])return GEO[g2];
+  const gu2=(g2.split(" ")[0])||"";
+  if(GU_GEO[gu2])return GU_GEO[gu2];
+  return null;
+}
+function distKm(a,b){
+  const R=6371,dLat=(b[0]-a[0])*Math.PI/180,dLng=(b[1]-a[1])*Math.PI/180;
+  const s=Math.sin(dLat/2)**2+Math.cos(a[0]*Math.PI/180)*Math.cos(b[0]*Math.PI/180)*Math.sin(dLng/2)**2;
+  return R*2*Math.atan2(Math.sqrt(s),Math.sqrt(1-s));
+}
+/* 출발지(startId)부터 가장 가까운 곳을 이어붙이는 최근접 순서. 좌표 없는 곳은 뒤로. */
+function orderRoute(list,startId){
+  const withGeo=list.filter(d=>geo(d)),noGeo=list.filter(d=>!geo(d));
+  if(!withGeo.length)return [...list];
+  let start=withGeo.find(d=>d.id===startId)||withGeo[0];
+  const remain=withGeo.filter(d=>d!==start),ordered=[start];
+  let cur=geo(start);
+  while(remain.length){
+    let bi=0,bd=Infinity;
+    remain.forEach((d,i)=>{const dd=distKm(cur,geo(d));if(dd<bd){bd=dd;bi=i}});
+    const nx=remain.splice(bi,1)[0];ordered.push(nx);cur=geo(nx);
+  }
+  return [...ordered,...noGeo];
+}
+/* 네이버 길찾기(구간): 출발→도착. 좌표는 지역 중심 근사. 이름은 실제 곳 이름. */
+function naverRoute(from,to){
+  const f=geo(from),t=geo(to);
+  if(!f||!t)return null;
+  const p=v=>encodeURIComponent(v);
+  return "https://map.naver.com/index.nhn?menu=route&pathType=1"+
+    "&slng="+f[1]+"&slat="+f[0]+"&stext="+p(from.n)+
+    "&elng="+t[1]+"&elat="+t[0]+"&etext="+p(to.n);
 }
 
 function render(){
@@ -415,7 +490,7 @@ function render(){
 
 function card(d,n){
   const el=document.createElement("div");
-  el.className="card"+(d.status==="완료"?" done":"")+(ARCHIVED.includes(d.status)?" arch":"")+(d.fav?" flag":"");
+  el.className="card"+(d.status==="완료"?" done":"")+(ARCHIVED.includes(d.status)?" arch":"")+(d.fav?" flag":"")+(d.route?" inroute":"");
   const mapUrl="https://map.naver.com/p/search/"+encodeURIComponent(d.a);
   el.innerHTML=`
     <div class="c-top">
@@ -435,6 +510,7 @@ function card(d,n){
     <div class="acts">
       ${d.email?`<button class="btn map mailbtn">메일 복사</button>`:`<a class="btn map" href="${mapUrl}" target="_blank" rel="noopener">네이버지도</a>`}
       <button class="btn copybtn">주소 복사</button>
+      <button class="btn routebtn${d.route?" on":""}">${d.route?"✓ 동선":"＋ 동선"}</button>
     </div>
     <textarea class="memo" placeholder="메모 (담당자 · 접수방법 · 반응 등)"></textarea>`;
   el.querySelector(".c-name").textContent=d.n;
@@ -452,6 +528,7 @@ function card(d,n){
     render();
   });
   el.querySelector(".copybtn").onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(d.a);toast("주소 복사됨")};
+  el.querySelector(".routebtn").onclick=()=>{d.route=!d.route;save();toast(d.route?"동선에 담음":"동선에서 뺌");render()};
   const mb=el.querySelector(".mailbtn");if(mb)mb.onclick=()=>{navigator.clipboard&&navigator.clipboard.writeText(d.a);toast("메일 복사됨")};
   ta.oninput=()=>{d.memo=ta.value;save()};
   ta.onfocus=()=>{ta.style.height=Math.max(38,ta.scrollHeight)+"px"};
@@ -469,22 +546,51 @@ function updateStats(){
   $("#pct").textContent=p+"%";$("#ring").style.strokeDashoffset=157-(157*p/100);
 }
 
+function routePicks(){return DB.filter(d=>d.route&&!ARCHIVED.includes(d.status))}
 function updateRoute(){
-  const favs=DB.filter(d=>d.fav&&!ARCHIVED.includes(d.status));
+  const picks=routePicks();
   const box=$("#routeBox");
-  if(!favs.length){box.style.display="none";return}
-  box.style.display="block";$("#route-cnt").textContent="· "+favs.length+"곳";
-  const reg={};favs.forEach(d=>{const k=(d.r||"기타").split(" ")[0];(reg[k]=reg[k]||[]).push(d)});
-  $("#route-body").innerHTML=Object.keys(reg).map(k=>
-    `<div class="reg">${k}</div>`+reg[k].map(d=>`<div class="pl">· ${d.n} <span style="color:var(--mute)">${d.a}</span></div>`).join("")).join("");
+  if(!picks.length){box.style.display="none";routeStart=null;return}
+  box.style.display="block";$("#route-cnt").textContent="· "+picks.length+"곳";
+  // 출발지 검증: 담긴 곳 중에 없으면 초기화
+  if(routeStart&&!picks.some(d=>d.id===routeStart))routeStart=null;
+  const ordered=orderRoute(picks,routeStart);
+  // 출발지 드롭다운
+  const sel='<div class="route-start">출발지 '+
+    '<select id="routeStartSel"><option value="">첫 곳 자동</option>'+
+    picks.map(d=>`<option value="${d.id}" ${d.id===routeStart?"selected":""}>${d.n}</option>`).join("")+
+    '</select></div>';
+  // 순서 리스트 + 구간 링크
+  let body="";
+  ordered.forEach((d,i)=>{
+    const noGeo=!geo(d);
+    body+=`<div class="rt-stop">
+      <span class="rt-no">${i+1}</span>
+      <div class="rt-info">
+        <div class="rt-name">${d.n}${noGeo?' <span class="rt-warn">위치?</span>':''}</div>
+        <div class="rt-addr">${d.a||""}</div>
+      </div>
+      <button class="rt-drop" data-id="${d.id}" title="동선에서 빼기">✕</button>
+    </div>`;
+    if(i<ordered.length-1){
+      const url=naverRoute(d,ordered[i+1]);
+      body+=`<div class="rt-seg">${url?`<a href="${url}" target="_blank" rel="noopener">↳ ${ordered[i+1].n}까지 길찾기</a>`:`<span class="rt-seg-x">↳ 다음 구간 (위치 정보 없음)</span>`}</div>`;
+    }
+  });
+  $("#route-body").innerHTML=sel+body;
+  const ss=$("#routeStartSel");
+  if(ss)ss.onchange=()=>{routeStart=ss.value||null;render()};
+  $("#route-body").querySelectorAll(".rt-drop").forEach(b=>b.onclick=()=>{
+    const d=DB.find(x=>x.id===b.dataset.id);if(d){d.route=false;save();render();toast("동선에서 뺌")}
+  });
 }
 
 function kakaoText(){
-  const favs=DB.filter(d=>d.fav&&!ARCHIVED.includes(d.status));
-  if(!favs.length)return null;
-  const reg={};favs.forEach(d=>{const k=(d.r||"기타").split(" ")[0];(reg[k]=reg[k]||[]).push(d)});
-  let t="🎬 프로필 투어 동선 ("+favs.length+"곳)\n";
-  for(const k in reg){t+="\n["+k+"]\n";reg[k].forEach(d=>{t+="· "+d.n+" - "+d.a+"\n"})}
+  const picks=routePicks();
+  if(!picks.length)return null;
+  const ordered=orderRoute(picks,routeStart);
+  let t="🎬 프로필 투어 동선 ("+ordered.length+"곳)\n";
+  ordered.forEach((d,i)=>{t+="\n"+(i+1)+". "+d.n+"\n   "+(d.a||"")});
   return t.trim();
 }
 
@@ -514,7 +620,7 @@ $("#edit-save").onclick=()=>{
   const region=$("#f-region").value.trim()||guessRegion(addr);
   const email=/@/.test(addr)?1:0;
   if(id){const d=DB.find(x=>x.id===id);Object.assign(d,{c:$("#f-cat").value,n:name,a:addr,r:region,note:$("#f-note").value.trim(),email});}
-  else{DB.unshift({id:uid(),c:$("#f-cat").value,n:name,a:addr,r:region,note:$("#f-note").value.trim(),email,status:"예정",fav:false,memo:"",addedAt:todayISO()});}
+  else{DB.unshift({id:uid(),c:$("#f-cat").value,n:name,a:addr,r:region,note:$("#f-note").value.trim(),email,status:"예정",fav:false,route:false,memo:"",addedAt:todayISO()});}
   save();closeModal("m-edit");render();toast(id?"수정됨":"추가됨");
 };
 $("#edit-delete").onclick=()=>{
@@ -563,7 +669,7 @@ function mergeItems(items){
       DB.unshift({id,c:it.c,n:it.n,a:it.a||"",r:it.r||guessRegion(it.a||""),
         note:it.note||"",email:it.email||0,
         status:(it.status&&STATUSES.includes(it.status))?it.status:"예정",
-        fav:false,memo:"",addedAt:todayISO()});
+        fav:false,route:false,memo:"",addedAt:todayISO()});
       added++;addedIds.push(id);
     }
   });
@@ -700,7 +806,7 @@ $("#bk-import").onclick=()=>{
   }catch(e){toast("형식이 안 맞아. 내보낸 텍스트 전체를 넣어줘")}
 };
 $("#bk-reset").onclick=()=>{if(confirm("전부 지우고 처음(키액팅랩 39곳) 상태로 되돌릴까?")){
-  DB=SEED.map(s=>({id:uid(),c:s[0],n:s[1],a:s[2],r:s[3],note:s[4],email:s[5],status:"예정",fav:false,memo:"",addedAt:null}));
+  DB=SEED.map(s=>({id:uid(),c:s[0],n:s[1],a:s[2],r:s[3],note:s[4],email:s[5],status:"예정",fav:false,route:false,memo:"",addedAt:null}));
   save();closeModal("m-backup");render();toast("초기화 완료")}};
 
 /* ── 필터/토글 ── */
